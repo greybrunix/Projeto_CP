@@ -105,7 +105,7 @@
 %format <-> = "{\,\leftrightarrow\,}"
 %format <|> = "{\,\updownarrow\,}"
 %format `minusNat`= "\mathbin{-}"
-%format ==> = "\Rightarrow"
+%format ==> = "\Rightarrow"-- Tri t
 %format .==>. = "\Rightarrow"
 %format .<==>. = "\Leftrightarrow"
 %format .==. = "\equiv"
@@ -153,10 +153,6 @@
 \begin{tabular}{ll}
 \textbf{Grupo} nr. & 52
 \\\hline
-a72161 & Miguel Vaz
-\\
-a95375 & João Pereira
-\\
 a96544 & Bruno Dias da Gião
 \end{tabular}
 \end{center}
@@ -938,7 +934,7 @@ simplificar também as outras expressões:
 %
 \just\equiv{ Eq-+ }
 %
-&     |either ((r d) . const 0) ((r d) . succ) = either (const 0) ((c d) == 0 ==> const 0, succ . (r d))|
+     |either ((r d) . const 0) ((r d) . succ) = either (const 0) ((c d) == 0 ==> const 0, succ . (r d))|
 %
 \just\equiv{ Fusão-+ }
 %
@@ -979,7 +975,7 @@ subb n = n - 1
           (c d). succ = (c d) ==> const d, subb . (c d)
      )|
 %
-\just\equiv{ Eq\-+ }
+\just\equiv{ Eq-+ }
 %
      |either ((c d) . const 0) ((c d) . succ) = either (const d) (((c d))==> const d, subb . (c d))|
 %
@@ -1051,6 +1047,7 @@ Assim estamos em condicões para aplicar a lei de Fokkinga:
      |(aux d) = (loop d)|
 \qed
 \end{eqnarray*}
+\subsubsection*{Explicação do último passo}
 Relembremos a definição de loop d:\\
 Temos que loop d = for (g d) (0,(0,d)) e que um loop for é definido por:
 \begin{eqnarray*}
@@ -1069,45 +1066,85 @@ Logo, aux d e loop d são a mesma função.
 % end of problem 1
 \subsection*{Problema 2}
 
+\begin{eqnarray*}
+  \start
+  |either (alice . Leaf) (alice . Fork) = either (unleaf, max . (bob >< bob))|
+  \just\equiv{ fusao-+, def de bob, absorcao-x}
+  |alice . (either Leaf Fork) = either (unleaf) (max . (min >< min) . (split alice alice))|
+  \just\equiv{ def de inLTree, absorcao-+, def de Functor de LTree, cancelamento-x }
+  |alice . inLTree = (either (unleaf) (max . (min >< min) . p1)) . F (split alice bob)|
+  \qed
+\end{eqnarray*}
+\begin{eqnarray*}
+  \start
+  |either (bob . Leaf) (bob . Fork) = either (unleaf) (min . (alice >< alice))|
+  \just\equiv{ fusao-+, def de alice, absorcao-x  }
+  |bob . either Leaf Fork = either (unleaf) (min . (max >< max) . (split bob bob))|
+  \just\equiv{ def de inLTree, absorcao-p, def de Functor de LTree, cancelamento-x }
+  |bob . inLTree = either unleaf (min . max . p2) . F (split alice bob)|
+  \qed
+\end{eqnarray*}
+\begin{eqnarray*}
+\start
+  |lcbr(
+  alice . inLTree = geneA . F (split alice bob)
+  )(
+  bob . inLTree = geneB . F (split alice bob)
+  )|
+  \just\equiv{ Lei de Fokkinga }
+  |split alice bob = cataLTree (split geneA geneB)|
+  \just\equiv{ Lei da Troca }
+  |split alice bob = cataLTree (either (split unleaf unleaf) (split aliceTMP bobTMP))|
+  \qed
+\end{eqnarray*}
+Falta agora implementar as definições de alice, de bob e do gene do catamorfismo de both que foi obtido através da lei da recursividade mútua.
 \begin{code}
 alice :: Ord c => LTree c -> c
-alice = undefined
+alice (Leaf a) = a
+alice (Fork (esq,dir)) = max (bob esq) (bob dir)
 
 bob :: Ord c => LTree c -> c
-bob   = undefined    
+bob (Leaf a) = a
+bob (Fork (esq,dir)) = min (alice esq) (alice dir)
+
 
 both :: Ord d => LTree d -> (d, d)
-both = undefined
+both = cataLTree g -- equiv a split alice bob
+
+g = undefined
+--g = either (split unleaf unleaf) (split (max . (min >< min) . p1)  (min . (max >< max) .p2))
+unleaf (Leaf a) = a
 \end{code}
 
 \subsection*{Problema 3}
 Biblioteca |LTree3|:
 
 \begin{code}
-inLTree3 = undefined
 
-outLTree3 (Tri t) = undefined
-outLTree3 (Nodo a b c) =  undefined
+inLTree3 = either Tri ((uncurry . uncurry) Nodo)
 
-baseLTree3 f g = undefined
+outLTree3 (Tri t) = i1 t
+outLTree3 (Nodo a b c) = i2 ((a,b),c)
 
-recLTree3 f = undefined
+baseLTree3 f g = f -|- ((g >< g) >< g)
 
-cataLTree3 f = undefined
+recLTree3 f = baseLTree3 id f
 
-anaLTree3 f = undefined
+cataLTree3 f = f . (recLTree3 (cataLTree3 f)) . outLTree3
 
-hyloLTree3 f g = undefined
+anaLTree3 f = inLTree3 . (recLTree3 (anaLTree3 f) ) . f
+
+hyloLTree3 f g = cataLTree3 f . anaLTree3 g
 \end{code}
 Genes do hilomorfismo |sierpinski|:
 \begin{code}
-g1 = undefined
+g1 = either singl (conc . (conc >< id))
 
-g2 (t,0) = undefined
-g2 (((x,y),s),n+1) = i2((t1,t2),t3) where
-     t1 = undefined
-     t2 = undefined
-     t3 = undefined
+g2 (t,0) = i1 t
+g2 (((x,y),s),n+1) = i2 ((t1,t2),t3) where
+     t1 = (((x,y),(div s 2)),n)
+     t2 = (((x+(div s 2),y),(div s 2)),n)
+     t3 = (((x,y+(div s 2)),(div s 2)),n)
 \end{code}
 
 \subsection*{Problema 4}
